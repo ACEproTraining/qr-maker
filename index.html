@@ -1,0 +1,625 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Quiet Zone QR</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: controls in one long column on the left, a sticky "print proof" stage on the right that holds the live code, its real QR readouts and the export buttons. Stacks with the proof first on phones. */
+:root {
+  --bg: #eef1f3;
+  --surface: #ffffff;
+  --surface-2: #e6eaed;
+  --fg: #12161c;
+  --muted: #566170;
+  --line: #d0d6dc;
+  --accent: #1d4ed8;
+  --accent-fg: #ffffff;
+  --stage: #dde2e6;
+  --good: #17794a;
+  --warn: #9a6200;
+  --bad: #b42318;
+  --font-display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1216; --surface: #161b21; --surface-2: #1e252c; --fg: #e8ecef; --muted: #98a3af;
+    --line: #2b343d; --accent: #7c9cff; --accent-fg: #0b1020; --stage: #0a0d10;
+    --good: #4fd08a; --warn: #e3b04b; --bad: #ff8a7a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1216; --surface: #161b21; --surface-2: #1e252c; --fg: #e8ecef; --muted: #98a3af;
+  --line: #2b343d; --accent: #7c9cff; --accent-fg: #0b1020; --stage: #0a0d10;
+  --good: #4fd08a; --warn: #e3b04b; --bad: #ff8a7a; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+h1, h2 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(26px, 4.2vw, 38px); line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; }
+.lede { margin: 8px 0 0; color: var(--muted); max-width: 58ch; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 28px; align-items: start; }
+.controls { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.section { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; }
+.section + .section { border-top: 1px solid var(--line); }
+.section h2 { font-size: 17px; font-weight: 600; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field > label, .field > legend, .label { font-size: 13px; font-weight: 600; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+.row { display: flex; gap: 16px; flex-wrap: wrap; }
+.row > .field { flex: 1 1 160px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { padding: 0; margin-bottom: 6px; }
+
+input[type="text"], input[type="password"], textarea, select {
+  width: 100%; font: inherit; color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; min-width: 0;
+}
+textarea { resize: vertical; min-height: 76px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, .drop:focus-within {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+input[type="color"] {
+  width: 48px; height: 36px; padding: 2px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surface); cursor: pointer;
+}
+.colorline { display: flex; align-items: center; gap: 10px; }
+.colorline code, .val { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
+.slider-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+
+.seg { position: relative; display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; max-width: 100%; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.seg input:checked + label { background: var(--surface); color: var(--fg); box-shadow: 0 0 0 1px var(--line); font-weight: 600; }
+.seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.drop {
+  display: flex; gap: 14px; align-items: center; padding: 12px; border: 1.5px dashed var(--line);
+  border-radius: 8px; background: var(--surface); cursor: pointer; min-width: 0;
+}
+.drop.over { border-color: var(--accent); background: var(--surface-2); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.thumb {
+  flex: none; width: 64px; height: 64px; border-radius: 6px; border: 1px solid var(--line);
+  display: grid; place-items: center; overflow: hidden;
+  background: repeating-conic-gradient(var(--surface-2) 0 25%, var(--surface) 0 50%) 0 0 / 12px 12px;
+}
+.thumb img { max-width: 100%; max-height: 100%; display: block; }
+.thumb.empty::after { content: "No logo"; font-size: 11px; color: var(--muted); }
+.dropcopy { min-width: 0; }
+.dropcopy strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.dropcopy span { font-size: 12.5px; color: var(--muted); }
+.btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  font: inherit; font-size: 14px; font-weight: 600; padding: 9px 16px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+}
+.btn.small { padding: 6px 12px; font-size: 13px; }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn[hidden] { display: none; }
+
+.proof { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.stage { position: relative; background: var(--stage); border-radius: 10px; padding: 36px; display: grid; place-items: center; }
+.cm { position: absolute; width: 14px; height: 14px; border-color: var(--muted); border-style: solid; border-width: 0; opacity: 0.7; }
+.cm.tl { top: 12px; left: 12px; border-top-width: 1.5px; border-left-width: 1.5px; }
+.cm.tr { top: 12px; right: 12px; border-top-width: 1.5px; border-right-width: 1.5px; }
+.cm.bl { bottom: 12px; left: 12px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.cm.br { bottom: 12px; right: 12px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+#qr { width: 100%; max-width: 360px; aspect-ratio: 1; display: block; }
+#qr svg { width: 100%; height: 100%; display: block; box-shadow: 0 1px 2px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.14); }
+.empty-note { color: var(--muted); text-align: center; padding: 48px 8px; max-width: 28ch; margin: 0 auto; }
+
+.readout { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.readout div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.readout dt { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.readout dd { margin: 0; font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+.chip { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; font-size: 14px; line-height: 1.4;
+  background: color-mix(in srgb, var(--tone, var(--muted)) 13%, var(--surface)); border: 1px solid color-mix(in srgb, var(--tone, var(--muted)) 35%, var(--line)); }
+.chip::before { content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--tone, var(--muted)); margin-top: 5px; }
+.chip.good { --tone: var(--good); } .chip.warn { --tone: var(--warn); } .chip.bad { --tone: var(--bad); }
+.notes { margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.notes:empty { display: none; }
+.export { display: flex; flex-direction: column; gap: 10px; }
+.exportrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.status { font-size: 13px; color: var(--muted); min-height: 1.4em; margin: 0; }
+
+@media (max-width: 900px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .proof { position: static; order: -1; }
+  .stage { padding: 28px; }
+}
+@media (max-width: 420px) {
+  .section { padding: 18px 16px; }
+  .readout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>QR code with your logo</h1>
+    <p class="lede">Put a logo in the middle and keep the code scannable. Your logo stays in your browser.</p>
+  </header>
+
+  <div class="grid">
+    <div class="controls">
+      <section class="section" aria-labelledby="h-content">
+        <h2 id="h-content">Content</h2>
+        <fieldset class="field">
+          <legend>What the code holds</legend>
+          <div class="seg">
+            <input type="radio" name="mode" id="mode-text" value="text" checked><label for="mode-text">Link or text</label>
+            <input type="radio" name="mode" id="mode-wifi" value="wifi"><label for="mode-wifi">Wi-Fi</label>
+          </div>
+        </fieldset>
+        <div id="pane-text" class="field">
+          <label for="text">Link or text</label>
+          <textarea id="text" rows="3" spellcheck="false">https://example.com/</textarea>
+          <p class="hint">Example link. Replace it with your own. Thai and other non-Latin text works too.</p>
+        </div>
+        <div id="pane-wifi" hidden style="display:flex;flex-direction:column;gap:16px">
+          <div class="row">
+            <div class="field"><label for="ssid">Network name</label><input type="text" id="ssid" autocomplete="off" spellcheck="false"></div>
+            <div class="field"><label for="wpass">Password</label><input type="text" id="wpass" autocomplete="off" spellcheck="false"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label for="wsec">Security</label>
+              <select id="wsec"><option value="WPA">WPA / WPA2 / WPA3</option><option value="WEP">WEP</option><option value="nopass">None</option></select>
+            </div>
+            <div class="field" style="justify-content:flex-end"><label class="check"><input type="checkbox" id="whidden"> Hidden network</label></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="h-logo">
+        <h2 id="h-logo">Logo</h2>
+        <label class="drop" id="drop" for="file">
+          <span class="thumb empty" id="thumb"></span>
+          <span class="dropcopy"><strong id="logoname">No logo</strong><span id="logosub">Drop an image here or choose a file. PNG, JPG, SVG or WebP. A square logo on a transparent background works best.</span></span>
+          <input type="file" id="file" accept="image/*">
+        </label>
+        <div class="btnrow">
+          <button type="button" class="btn small" id="remove">Remove logo</button>
+          <button type="button" class="btn small" id="sample" hidden>Use sample logo</button>
+        </div>
+        <p class="status" id="logoerr" role="status" style="color:var(--bad)"></p>
+        <div class="field">
+          <div class="slider-head"><label for="area">Logo area</label><span class="val" id="area-v">20%</span></div>
+          <input type="range" id="area" min="8" max="32" step="1" value="20">
+          <p class="hint">Share of the code's width that the logo and its backing cover.</p>
+        </div>
+        <div class="row">
+          <div class="field">
+            <div class="slider-head"><label for="pad">Padding</label><span class="val" id="pad-v">1.0 modules</span></div>
+            <input type="range" id="pad" min="0" max="3" step="0.25" value="1">
+          </div>
+          <fieldset class="field">
+            <legend>Backing shape</legend>
+            <div class="seg">
+              <input type="radio" name="shape" id="sh-rounded" value="rounded" checked><label for="sh-rounded">Rounded</label>
+              <input type="radio" name="shape" id="sh-circle" value="circle"><label for="sh-circle">Circle</label>
+              <input type="radio" name="shape" id="sh-square" value="square"><label for="sh-square">Square</label>
+            </div>
+          </fieldset>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="h-style">
+        <h2 id="h-style">Style</h2>
+        <div class="row">
+          <fieldset class="field">
+            <legend>Dots</legend>
+            <div class="seg">
+              <input type="radio" name="dot" id="dot-square" value="square"><label for="dot-square">Square</label>
+              <input type="radio" name="dot" id="dot-rounded" value="rounded" checked><label for="dot-rounded">Rounded</label>
+              <input type="radio" name="dot" id="dot-dots" value="dots"><label for="dot-dots">Dots</label>
+            </div>
+          </fieldset>
+          <fieldset class="field">
+            <legend>Corner eyes</legend>
+            <div class="seg">
+              <input type="radio" name="eye" id="eye-square" value="square"><label for="eye-square">Square</label>
+              <input type="radio" name="eye" id="eye-rounded" value="rounded" checked><label for="eye-rounded">Rounded</label>
+              <input type="radio" name="eye" id="eye-circle" value="circle"><label for="eye-circle">Circle</label>
+            </div>
+          </fieldset>
+        </div>
+        <div class="row">
+          <div class="field"><label for="fg">Code color</label><div class="colorline"><input type="color" id="fg" value="#12161c"><code id="fg-v">#12161c</code></div></div>
+          <div class="field"><label for="bgc">Background</label><div class="colorline"><input type="color" id="bgc" value="#ffffff"><code id="bgc-v">#ffffff</code></div></div>
+        </div>
+        <div class="field">
+          <div class="slider-head"><label for="margin">Quiet zone</label><span class="val" id="margin-v">4 modules</span></div>
+          <input type="range" id="margin" min="0" max="8" step="1" value="4">
+          <p class="hint">The blank border around the code. Scanners expect at least 4 modules.</p>
+        </div>
+        <fieldset class="field">
+          <legend>Error correction</legend>
+          <div class="seg">
+            <input type="radio" name="ecc" id="ecc-L" value="L"><label for="ecc-L">L 7%</label>
+            <input type="radio" name="ecc" id="ecc-M" value="M"><label for="ecc-M">M 15%</label>
+            <input type="radio" name="ecc" id="ecc-Q" value="Q"><label for="ecc-Q">Q 25%</label>
+            <input type="radio" name="ecc" id="ecc-H" value="H" checked><label for="ecc-H">H 30%</label>
+          </div>
+          <p class="hint">Higher levels can lose more of the code and still scan, which gives a logo more room. Use H with a logo.</p>
+        </fieldset>
+      </section>
+    </div>
+
+    <aside class="proof" aria-label="Preview and export">
+      <div class="stage">
+        <i class="cm tl"></i><i class="cm tr"></i><i class="cm bl"></i><i class="cm br"></i>
+        <div id="qr" role="img" aria-label="QR code preview"></div>
+      </div>
+      <dl class="readout">
+        <div><dt>Version</dt><dd id="r-ver">-</dd></div>
+        <div><dt>Modules</dt><dd id="r-mod">-</dd></div>
+        <div><dt>Logo hides</dt><dd id="r-hid">-</dd></div>
+        <div><dt>Recovers</dt><dd id="r-rec">-</dd></div>
+      </dl>
+      <div class="chip" id="verdict" aria-live="polite"></div>
+      <ul class="notes" id="notes"></ul>
+      <div class="export">
+        <div class="exportrow">
+          <label for="size" class="label">Image size</label>
+          <select id="size" style="width:auto">
+            <option value="512">512 px</option>
+            <option value="1024" selected>1024 px</option>
+            <option value="2048">2048 px</option>
+          </select>
+        </div>
+        <div class="btnrow">
+          <button type="button" class="btn primary" id="save-png" disabled>Save PNG</button>
+          <button type="button" class="btn" id="save-svg" disabled>Save SVG</button>
+        </div>
+        <p class="status" id="status" role="status"></p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var ECC_CAP = { L: 0.07, M: 0.15, Q: 0.25, H: 0.30 };
+  var MAX_LOGO_PX = 512;
+  var logo = null;          // { url, name, sample }
+  var lastBuild = null;     // { qr, opts }
+  /* Plain browser download: works on any host, no claude.ai needed. */
+  function saveFile(name, data, type) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var blob = data instanceof Blob ? data : new Blob([data], { type: type });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        resolve();
+      } catch (e) { reject(e); }
+    });
+  }
+  var pending = false;
+
+  if (window.qrcode) {
+    window.qrcode.stringToBytes = function (s) { return Array.prototype.slice.call(new TextEncoder().encode(s)); };
+  }
+
+  function radio(name) { var el = document.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : null; }
+  function f(x) { return +x.toFixed(3); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function wifiEsc(s) { return String(s).replace(/([\\;,:"])/g, '\\$1'); }
+
+  function payload() {
+    if (radio('mode') === 'wifi') {
+      var ssid = $('ssid').value;
+      if (!ssid) return '';
+      var sec = $('wsec').value;
+      var s = 'WIFI:T:' + sec + ';S:' + wifiEsc(ssid) + ';';
+      if (sec !== 'nopass') s += 'P:' + wifiEsc($('wpass').value) + ';';
+      return s + 'H:' + ($('whidden').checked ? 'true' : 'false') + ';;';
+    }
+    return $('text').value.trim();
+  }
+
+  function lum(hex) {
+    var v = [1, 3, 5].map(function (i) {
+      var c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  }
+  function contrast(a, b) {
+    var l1 = lum(a), l2 = lum(b);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  }
+
+  function rr(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    return 'M' + f(x + r) + ' ' + f(y) + 'h' + f(w - 2 * r) + 'a' + f(r) + ' ' + f(r) + ' 0 0 1 ' + f(r) + ' ' + f(r) +
+      'v' + f(h - 2 * r) + 'a' + f(r) + ' ' + f(r) + ' 0 0 1 ' + f(-r) + ' ' + f(r) +
+      'h' + f(-(w - 2 * r)) + 'a' + f(r) + ' ' + f(r) + ' 0 0 1 ' + f(-r) + ' ' + f(-r) +
+      'v' + f(-(h - 2 * r)) + 'a' + f(r) + ' ' + f(r) + ' 0 0 1 ' + f(r) + ' ' + f(-r) + 'z';
+  }
+  function circ(cx, cy, r) {
+    return 'M' + f(cx - r) + ' ' + f(cy) + 'a' + f(r) + ' ' + f(r) + ' 0 1 0 ' + f(2 * r) + ' 0a' + f(r) + ' ' + f(r) + ' 0 1 0 ' + f(-2 * r) + ' 0z';
+  }
+
+  /* One builder serves the preview, the SVG download and the PNG export. */
+  function buildSVG(qr, o, px) {
+    var n = qr.getModuleCount(), m = o.margin, W = n + 2 * m, c = W / 2;
+    var has = !!o.logo, B = n * o.area, half = B / 2;
+    var hidden = 0, d = '';
+
+    function inFinder(r, col) { return (r < 7 && col < 7) || (r < 7 && col >= n - 7) || (r >= n - 7 && col < 7); }
+    function cleared(r, col) {
+      if (!has) return false;
+      var dx = Math.abs(col + 0.5 + m - c), dy = Math.abs(r + 0.5 + m - c);
+      if (o.shape === 'circle') return Math.hypot(dx, dy) < half + 0.35;
+      return dx < half + 0.5 && dy < half + 0.5;
+    }
+
+    for (var r = 0; r < n; r++) {
+      for (var col = 0; col < n; col++) {
+        if (cleared(r, col)) { hidden++; continue; }
+        if (inFinder(r, col) || !qr.isDark(r, col)) continue;
+        var x = col + m, y = r + m;
+        if (o.dot === 'dots') d += circ(x + 0.5, y + 0.5, 0.46);
+        else d += rr(x, y, 1, 1, o.dot === 'rounded' ? 0.32 : 0);
+      }
+    }
+
+    var eyes = '';
+    [[0, 0], [n - 7, 0], [0, n - 7]].forEach(function (p) {
+      var X = p[0] + m, Y = p[1] + m;
+      if (o.eye === 'circle') eyes += circ(X + 3.5, Y + 3.5, 3.5) + circ(X + 3.5, Y + 3.5, 2.5) + circ(X + 3.5, Y + 3.5, 1.5);
+      else if (o.eye === 'rounded') eyes += rr(X, Y, 7, 7, 1.0) + rr(X + 1, Y + 1, 5, 5, 0.5) + rr(X + 2, Y + 2, 3, 3, 0.5);
+      else eyes += rr(X, Y, 7, 7, 0) + rr(X + 1, Y + 1, 5, 5, 0) + rr(X + 2, Y + 2, 3, 3, 0);
+    });
+
+    var size = px ? ' width="' + px + '" height="' + px + '"' : '';
+    var s = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ' + f(W) + ' ' + f(W) + '"' + size + '>';
+    s += '<rect width="' + f(W) + '" height="' + f(W) + '" fill="' + o.bg + '"/>';
+    s += '<path fill="' + o.fg + '"' + (o.dot === 'square' ? ' shape-rendering="crispEdges"' : '') + ' d="' + d + '"/>';
+    s += '<path fill="' + o.fg + '" fill-rule="evenodd" d="' + eyes + '"/>';
+
+    if (has) {
+      var back;
+      if (o.shape === 'circle') back = '<circle cx="' + f(c) + '" cy="' + f(c) + '" r="' + f(half) + '" fill="' + o.bg + '"/>';
+      else back = '<rect x="' + f(c - half) + '" y="' + f(c - half) + '" width="' + f(B) + '" height="' + f(B) + '" rx="' + f(o.shape === 'rounded' ? B * 0.22 : 0) + '" fill="' + o.bg + '"/>';
+      var inner = Math.max(B - 2 * o.pad, 0.5);
+      var box = o.shape === 'circle' ? inner / Math.SQRT2 : inner;
+      s += back + '<image x="' + f(c - box / 2) + '" y="' + f(c - box / 2) + '" width="' + f(box) + '" height="' + f(box) +
+        '" preserveAspectRatio="xMidYMid meet" href="' + o.logo + '" xlink:href="' + o.logo + '"/>';
+    }
+    s += '</svg>';
+    return { svg: s, n: n, pct: hidden / (n * n) };
+  }
+
+  function readOptions() {
+    return {
+      margin: +$('margin').value,
+      fg: $('fg').value, bg: $('bgc').value,
+      dot: radio('dot'), eye: radio('eye'), shape: radio('shape'),
+      area: +$('area').value / 100, pad: +$('pad').value,
+      logo: logo ? logo.url : null
+    };
+  }
+
+  function setVerdict(cls, text) {
+    var v = $('verdict');
+    v.className = 'chip ' + cls;
+    v.textContent = text;
+  }
+
+  function render() {
+    pending = false;
+    $('area-v').textContent = $('area').value + '%';
+    $('pad-v').textContent = (+$('pad').value).toFixed(1) + ' modules';
+    $('margin-v').textContent = $('margin').value + ' modules';
+    $('fg-v').textContent = $('fg').value;
+    $('bgc-v').textContent = $('bgc').value;
+
+    var ecc = radio('ecc'), text = payload(), host = $('qr'), notes = [];
+    lastBuild = null;
+    $('save-png').disabled = $('save-svg').disabled = true;
+
+    function empty(msg, cls) {
+      host.innerHTML = '<p class="empty-note">' + esc(msg) + '</p>';
+      ['r-ver', 'r-mod', 'r-hid'].forEach(function (id) { $(id).textContent = '-'; });
+      $('r-rec').textContent = Math.round(ECC_CAP[ecc] * 100) + '%';
+      setVerdict(cls || 'warn', msg);
+      $('notes').innerHTML = '';
+    }
+
+    if (!window.qrcode) { empty('The QR library did not load. Check your connection and reload.', 'bad'); return; }
+    if (!text) { empty(radio('mode') === 'wifi' ? 'Enter a network name to see the code.' : 'Enter a link or text to see the code.', 'warn'); return; }
+
+    var qr;
+    try {
+      qr = window.qrcode(0, ecc);
+      qr.addData(text);
+      qr.make();
+    } catch (e) {
+      empty('That is too much content for error correction ' + ecc + '. Shorten it or choose a lower level.', 'bad');
+      return;
+    }
+
+    var o = readOptions();
+    var res = buildSVG(qr, o, null);
+    host.innerHTML = res.svg;
+    lastBuild = { qr: qr, opts: o };
+
+    var n = res.n, pct = res.pct, cap = ECC_CAP[ecc];
+    $('r-ver').textContent = String((n - 17) / 4);
+    $('r-mod').textContent = n + ' x ' + n;
+    $('r-hid').textContent = o.logo ? (pct * 100).toFixed(1) + '%' : '0%';
+    $('r-rec').textContent = Math.round(cap * 100) + '%';
+
+    if (!o.logo) {
+      setVerdict('good', 'Plain code with no logo. Add one to see how much room it takes.');
+    } else {
+      var ratio = pct / cap;
+      if (ratio <= 0.5) setVerdict('good', 'The logo hides ' + (pct * 100).toFixed(1) + '% of the code. That is well inside what level ' + ecc + ' can recover.');
+      else if (ratio <= 0.8) setVerdict('warn', 'Close to the limit. The logo hides ' + (pct * 100).toFixed(1) + '% of the code. Scan it with a phone before you print.');
+      else setVerdict('bad', 'Too large. The logo hides ' + (pct * 100).toFixed(1) + '% of the code. Shrink it or raise error correction.');
+      if (ecc !== 'H' && ratio > 0.5) notes.push('Error correction H gives a logo the most room.');
+    }
+
+    if (lum(o.fg) > lum(o.bg)) notes.push('Light code on a dark background. Many scanners only read dark code on a light background.');
+    else if (contrast(o.fg, o.bg) < 3) notes.push('Low contrast between code and background. Scanning may fail.');
+    if (o.eye === 'circle') notes.push('Circle eyes scan on most phones, but some readers struggle with them. Test before you print.');
+    if (o.margin < 4) notes.push('The quiet zone is under 4 modules. Some scanners need 4.');
+    if (n >= 57) notes.push('This code is dense. Print it large or shorten the content.');
+    $('notes').innerHTML = notes.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
+
+    $('save-png').disabled = $('save-svg').disabled = false;
+  }
+
+  function schedule() { if (!pending) { pending = true; requestAnimationFrame(render); } }
+
+  /* Logo loading: every logo is flattened to a PNG so exports stay self-contained. */
+  function normalise(src, vector) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () {
+        var w = img.naturalWidth || MAX_LOGO_PX, h = img.naturalHeight || MAX_LOGO_PX;
+        var s = vector ? MAX_LOGO_PX / Math.max(w, h) : Math.min(1, MAX_LOGO_PX / Math.max(w, h));
+        var cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(w * s)); cv.height = Math.max(1, Math.round(h * s));
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        try { resolve(cv.toDataURL('image/png')); } catch (e) { reject(e); }
+      };
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  var SAMPLE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#1d4ed8"/>' +
+    '<path d="M26 26h48a8 8 0 0 1 8 8v26a8 8 0 0 1-8 8H54L38 82V68H26a8 8 0 0 1-8-8V34a8 8 0 0 1 8-8z" fill="#fff"/>' +
+    '<circle cx="36" cy="47" r="4.5" fill="#1d4ed8"/><circle cx="50" cy="47" r="4.5" fill="#1d4ed8"/><circle cx="64" cy="47" r="4.5" fill="#1d4ed8"/></svg>';
+
+  function showLogo() {
+    var thumb = $('thumb');
+    if (logo) {
+      thumb.className = 'thumb';
+      thumb.innerHTML = '<img alt="" src="' + logo.url + '">';
+      $('logoname').textContent = logo.sample ? 'Sample logo' : logo.name;
+      $('logosub').textContent = logo.sample ? 'Replace it with your own image: drop a file here or choose one.' : 'Drop another image here to replace it.';
+    } else {
+      thumb.className = 'thumb empty';
+      thumb.innerHTML = '';
+      $('logoname').textContent = 'No logo';
+      $('logosub').textContent = 'Drop an image here or choose a file. PNG, JPG, SVG or WebP. A square logo on a transparent background works best.';
+    }
+    $('remove').hidden = !logo;
+    $('sample').hidden = !!logo;
+  }
+
+  function useSample() {
+    normalise('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(SAMPLE_SVG), true).then(function (url) {
+      logo = { url: url, name: 'Sample logo', sample: true };
+      showLogo(); schedule();
+    });
+  }
+
+  function takeFile(file) {
+    $('logoerr').textContent = '';
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { $('logoerr').textContent = 'That file is not an image. Choose a PNG, JPG, SVG or WebP.'; return; }
+    var u = URL.createObjectURL(file);
+    normalise(u, file.type === 'image/svg+xml').then(function (url) {
+      logo = { url: url, name: file.name, sample: false };
+      showLogo(); schedule();
+    }).catch(function () {
+      $('logoerr').textContent = 'That image could not be read. Try a PNG or JPG.';
+    }).then(function () { URL.revokeObjectURL(u); });
+  }
+
+  $('file').addEventListener('change', function (e) { takeFile(e.target.files[0]); e.target.value = ''; });
+  var drop = $('drop');
+  ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function (e) { takeFile(e.dataTransfer && e.dataTransfer.files[0]); });
+  $('remove').addEventListener('click', function () { logo = null; $('logoerr').textContent = ''; showLogo(); schedule(); });
+  $('sample').addEventListener('click', useSample);
+
+  document.querySelectorAll('input[name="mode"]').forEach(function (el) {
+    el.addEventListener('change', function () {
+      var wifi = radio('mode') === 'wifi';
+      $('pane-text').hidden = wifi;
+      $('pane-wifi').hidden = !wifi;
+      $('pane-wifi').style.display = wifi ? 'flex' : 'none';
+      schedule();
+    });
+  });
+  $('pane-wifi').style.display = 'none';
+
+  ['text', 'ssid', 'wpass', 'wsec', 'whidden', 'area', 'pad', 'margin', 'fg', 'bgc'].forEach(function (id) {
+    $(id).addEventListener('input', schedule);
+    $(id).addEventListener('change', schedule);
+  });
+  ['dot', 'eye', 'shape', 'ecc'].forEach(function (name) {
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function (el) { el.addEventListener('change', schedule); });
+  });
+
+  /* Saving goes through the viewer's download prompt. */
+  function say(msg) { $('status').textContent = msg; }
+  function failed(e) {
+    if (e && e.code === 'declined') { say('Save cancelled.'); return; }
+    say('Could not save the file. ' + ((e && e.message) || ''));
+  }
+
+  $('save-svg').addEventListener('click', function () {
+    if (!lastBuild) return;
+    var px = +$('size').value;
+    var svg = buildSVG(lastBuild.qr, lastBuild.opts, px).svg;
+    saveFile('qr-code.svg', '<?xml version="1.0" encoding="UTF-8"?>\n' + svg, 'image/svg+xml')
+      .then(function () { say('SVG saved.'); }, failed);
+  });
+
+  $('save-png').addEventListener('click', function () {
+    if (!lastBuild) return;
+    var px = +$('size').value;
+    var svg = buildSVG(lastBuild.qr, lastBuild.opts, px).svg;
+    var url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+    var img = new Image();
+    img.onload = function () {
+      var cv = document.createElement('canvas');
+      cv.width = cv.height = px;
+      cv.getContext('2d').drawImage(img, 0, 0, px, px);
+      URL.revokeObjectURL(url);
+      cv.toBlob(function (blob) {
+        if (!blob) { say('Could not build the PNG.'); return; }
+        saveFile('qr-code.png', blob, 'image/png').then(function () { say('PNG saved.'); }, failed);
+      }, 'image/png');
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); say('Could not build the PNG.'); };
+    img.src = url;
+  });
+
+  showLogo();
+  useSample();
+  render();
+
+})();
+</script>
+
+</body></html>
